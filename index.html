@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sample Site</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script>
+        $(function () {
+            var socket = io();
+            socket.on('status', function(msg) {
+                $('b.status').text(msg);
+                if (msg === 'deploying') {
+                    $('.deploy').hide();
+                }
+            });
+
+            $('.select-branches').hide();
+            $('.deploy-btn').hide();
+
+            socket.on('branches', function (branches) {
+                var selectBranches = '<select>';
+                for (var i = 0; i <= branches.length; i++) {
+                    selectBranches += '<option>' + branches[i] + '</option>';
+                }
+                selectBranches += '</select>';
+
+                $('.select-branches').html(selectBranches).show();
+                $('.deploy-btn').show();
+                $('.fetching-branches').hide();
+            });
+
+            socket.on('show log', function(msg) {
+                $('pre output p').text(msg);
+            });
+
+            $('.deploy-btn').on('click', function () {
+                socket.emit('deploy', $('.select-branches select').val());
+            });
+        });
+    </script>
+    <style>
+        body {
+            background-color: black;
+            background-image: radial-gradient(
+                    rgba(0, 150, 0, 0.75), black 120%
+            );
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            padding: 2rem;
+            color: white;
+            font: 1.3rem Inconsolata, monospace;
+            text-shadow: 0 0 5px #C8C8C8;
+        &::after {
+             content: "";
+             position: absolute;
+             top: 0;
+             left: 0;
+             width: 100vw;
+             height: 100vh;
+             background: repeating-linear-gradient(
+                     0deg,
+                     rgba(black, 0.15),
+                     rgba(black, 0.15) 1px,
+                     transparent 1px,
+                     transparent 2px
+             );
+             pointer-events: none;
+         }
+        }
+        ::selection {
+            background: #0080FF;
+            text-shadow: none;
+        }
+        pre {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="deploy">
+        <b style="color: red" class="fetching-branches">Fetching branches...</b>
+        <div class="select-branches"></div>
+        <button class="deploy-btn">Deploy</button>
+    </div>
+    <div class="jumbotron">
+        <p class="log"></p>
+        <pre>
+            <output>
+                <b class="status"></b>
+                <p></p>
+            </output>
+        </pre>
+    </div>
+</div>
+
+</body>
+</html>
