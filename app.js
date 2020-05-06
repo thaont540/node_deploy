@@ -29,22 +29,43 @@ var logs = [];
 var branches = ['develop'];
 var branch = 'develop';
 
-app.get('/', function(req, res) {
+app.get('/deploy', function(req, res) {
     res.sendFile(path.join(__dirname + '/index.html'));
 });
 
+app.get('/deploy/edit-env', function(req, res) {
+    res.sendFile(path.join(__dirname + '/edit-env.html'));
+});
+
+async function test() {
+    let env = await readFileFrom(shared_folder + '.env.bak');
+    writeToFile(shared_folder + '.env', env);
+}
+
 io.on('connection', (socket) => {
-    if (running) {
-        io.emit('status', 'deploying');
-        io.emit('show log', logs.join("\n"));
-    } else {
-        githubBranches();
-        io.emit('status', 'Not deploy');
-    }
+    socket.on('get branches', function (a) {
+        if (running) {
+            io.emit('status', 'deploying');
+            io.emit('show log', logs.join("\n"));
+        } else {
+            githubBranches();
+            io.emit('status', 'Not deploy');
+        }
+    });
 
     // socket.on('disconnect', () => {
     //     console.log('user disconnected');
     // });
+
+    socket.on('get env', function (a) {
+        readFileFrom(shared_folder + '.env').then(function (data) {
+            io.emit('env', data);
+        });
+    });
+
+    socket.on('update env', function (data) {
+        writeToFile(shared_folder + '.env', data);
+    });
 
     socket.on('deploy', function (deploy_branch) {
         if (running) {
@@ -218,4 +239,14 @@ function showing(message = '') {
     console.log(message);
     logs.push(message);
     io.emit('show log', logs.join("\n"));
+}
+
+async function readFileFrom(path) {
+    const { stdout, stderr } = await exec('cat ' + path);
+
+    return stdout;
+}
+
+async function writeToFile(path, content) {
+    const { stdout, stderr } = await exec("echo '" + content + "' > " + path);
 }
