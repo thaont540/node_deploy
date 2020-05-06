@@ -8,7 +8,8 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
 const git_url = process.env.GITHUB_REPO_URL;
-const remote = [];
+let remoteSetting = process.env.REMOTE;
+const remote = remoteSetting ? remoteSetting.split(',') : [];
 const authToken = process.env.GITHUB_AUTH_TOKEN;
 const owner = process.env.GITHUB_REPO_OWNER;
 const repo = process.env.GITHUB_REPO_NAME;

@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Sample Site</title>
+    <title>Deploy Tool</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script>
         $(function () {
             var socket = io();
@@ -12,6 +13,7 @@
                 $('b.status').text(msg);
                 if (msg === 'deploying') {
                     $('.deploy').hide();
+                    $('b.status').attr('style', 'color:red');
                 }
             });
 
@@ -79,6 +81,81 @@
         pre {
             margin: 0;
         }
+        .box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .box select {
+            background-color: #0563af;
+            color: white;
+            padding: 12px;
+            width: 250px;
+            border: none;
+            font-size: 20px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+            -webkit-appearance: button;
+            appearance: button;
+            outline: none;
+        }
+
+        .box::before {
+            content: "\f13a";
+            font-family: FontAwesome;
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20%;
+            height: 100%;
+            text-align: center;
+            font-size: 28px;
+            line-height: 45px;
+            color: rgba(255, 255, 255, 0.5);
+            background-color: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+        }
+
+        .box:hover::before {
+            color: rgba(255, 255, 255, 0.6);
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .box select option {
+            padding: 30px;
+        }
+        .deploy-btn {
+            position: absolute;
+            top: 50%;
+            left: 70%;
+            transform: translate(-50%, -50%);
+        }
+        a.button {
+            display:inline-block;
+            padding:0.35em 1.2em;
+            border:0.1em solid #FFFFFF;
+            margin:0 0.3em 0.3em 0;
+            border-radius:0.12em;
+            box-sizing: border-box;
+            text-decoration:none;
+            font-family:'Roboto',sans-serif;
+            font-weight:300;
+            color:#FFFFFF;
+            text-align:center;
+            transition: all 0.2s;
+        }
+        a.button:hover {
+            color: #ffffff;
+            background-color:#0563af;
+        }
+        @media all and (max-width:30em){
+            a.button {
+                display:block;
+                margin:0.4em auto;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -86,14 +163,16 @@
 <div class="container">
     <div class="deploy">
         <b style="color: red" class="fetching-branches">Fetching branches...</b>
-        <div class="select-branches"></div>
-        <button class="deploy-btn">Deploy</button>
+        <div class="aa">
+            <div class="select-branches box"></div>
+            <a href="javacript:;" class="button deploy-btn">Deploy</a>
+        </div>
     </div>
     <div class="jumbotron">
         <p class="log"></p>
         <pre>
             <output>
-                <b class="status"></b>
+                <h2><b class="status" style="color:blue;"></b></h2>
                 <p></p>
             </output>
         </pre>
