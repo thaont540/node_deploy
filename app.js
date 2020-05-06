@@ -16,9 +16,9 @@ const octokit = new Octokit({
     auth: authToken
 });
 
-const base_folder = '/mnt/d/Projects/test_node_deploy/';
+const base_folder = '/var/www/' + process.env.PROJECT_NAME + '/' + process.env.PROJECT_NAME + '/';
 const release_folder = base_folder + 'releases/';
-const release_folder_date = release_folder + formatFolder() + '/';
+var release_folder_date = release_folder + formatFolder() + '/';
 const shared_folder = base_folder + 'shared/';
 
 const port = process.env.NODE_PORT || 8080;
@@ -50,9 +50,9 @@ io.on('connection', (socket) => {
             console.log('Dang chay cmnr, deploy cc a?');
             io.emit('status', 'deploying');
         } else {
-            branch = deploy_branch;
             io.emit('status', 'deploying');
-            run();
+            deploy(deploy_branch);
+
         }
     });
 });
@@ -61,16 +61,28 @@ http.listen(port, function () {
     console.log('Server listening at ' + port);
 });
 
+async function deploy(deploy_branch) {
+    branch = deploy_branch;
+    let deployed  = await run();
+    if (deployed) {
+        showing('Deployed successfully!');
+    } else {
+        showing('Failed to deploy!');
+    }
+
+    running = false;
+    logs = [];
+}
 
 async function githubBranches() {
-    var protecteds = false;
-    var per_page = 100;
+    let protecteds = false;
+    let per_page = 100;
 
-    var recursive = true;
-    var page = 1;
+    let recursive = true;
+    let page = 1;
 
     while (recursive) {
-        var { data } = await octokit.repos.listBranches({
+        let { data } = await octokit.repos.listBranches({
             owner,
             repo,
             protecteds,
@@ -78,9 +90,10 @@ async function githubBranches() {
             page,
         });
 
-        var a = data.map(function (b) {
+        let a = data.map(function (b) {
             return b.name;
         });
+
         branches = branches.concat(a);
         page++;
         recursive = a.length;
@@ -90,68 +103,106 @@ async function githubBranches() {
 }
 
 async function run() {
+    // TO DO log by run time
     running = true;
+    release_folder_date = release_folder + formatFolder() + '/';
 
     // showing('Removing old release folders');
     // await executeZ('find ' + release_folder + '* -mtime +1 -exec rm {} \\;')
 
     showing('Cloning git from ' + git_url);
-    await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
+    let cloned = await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
+    if (!cloned) {
+        return false;
+    }
 
     showing('Running composer...');
-    await executeZ('cd ' + release_folder_date + ' && composer install --no-interaction --prefer-dist');
+    let composer = await executeZ('cd ' + release_folder_date + ' && composer install --no-interaction --prefer-dist');
+    if (!composer) {
+        return false;
+    }
 
-    var current = [
+    let current = [
         'bootstrap/cache',
         'storage',
-        '.env.example',
+        '.env',
         '.htpasswd'
     ];
 
     current = current.concat(remote);
 
     showing('Making symlink...');
-    for (var i = 0;i < current.length; i++) {
+    for (let i = 0;i < current.length; i++) {
         if (current[i] === 'storage' || current[i] === 'bootstrap/cache') {
-            await executeZ('rm -rf ' + release_folder_date + current[i]);
+            let removeSymLink = await executeZ('rm -rf ' + release_folder_date + current[i]);
+            if (!removeSymLink) {
+                return false;
+            }
         }
 
-        await executeZ('ln -s ' + shared_folder + current[i] + ' ' + release_folder_date + current[i] + '-temp');
-        await executeZ('mv -Tf ' + release_folder_date + current[i] + '-temp ' + release_folder_date + current[i]);
+        let symlinkTmp = await executeZ('ln -s ' + shared_folder + current[i] + ' ' + release_folder_date + current[i] + '-temp');
+        if (!symlinkTmp) {
+            return false;
+        }
+
+        let symlink = await executeZ('mv -Tf ' + release_folder_date + current[i] + '-temp ' + release_folder_date + current[i]);
+        if (!symlink) {
+            return false;
+        }
     }
 
     showing('Running npm...');
-    await executeZ('cd ' + release_folder_date + ' && npm install');
-    await executeZ('cd ' + release_folder_date + ' && npm run dev');
+    let npmInstall = await executeZ('cd ' + release_folder_date + ' && npm install');
+    if (!npmInstall) {
+        return false;
+    }
+
+    let npmRunDev = await executeZ('cd ' + release_folder_date + ' && npm run dev');
+    if (!npmRunDev) {
+        return false;
+    }
+
     showing('Migrate database...');
-    await executeZ('cd ' + release_folder_date + ' && php artisan migrate --force');
+    let migrations = await executeZ('cd ' + release_folder_date + ' && php artisan migrate --force');
+    if (!migrations) {
+        return false;
+    }
+
     showing('Making storage link...');
-    await executeZ('cd ' + release_folder_date + ' && php artisan storage:link');
+    let storageLink = await executeZ('cd ' + release_folder_date + ' && php artisan storage:link');
+    if (!storageLink) {
+        return false;
+    }
 
     showing('Making current link...');
-    await executeZ('ln -s ' + release_folder_date + ' ' + base_folder + 'current-temp');
-    await executeZ('mv -Tf ' + base_folder + 'current-temp ' + base_folder + 'current');
+    let currentLinkTmp = await executeZ('ln -s ' + release_folder_date + ' ' + base_folder + 'current-temp');
+    if (!currentLinkTmp) {
+        return false;
+    }
 
-    showing('Deployed successfully!');
-    running = false;
-    logs = [];
+    let currentLink = await executeZ('mv -Tf ' + base_folder + 'current-temp ' + base_folder + 'current');
+    if (!currentLink) {
+        return false;
+    }
 
     // remove old release (keep 5 or more)
     // latter
+
+    return true;
 }
 
 async function executeZ(cmd) {
     showing('>>>>>> ' + cmd);
     try {
         const { stdout, stderr } = await exec(cmd);
-        // console.log('stdout:', stdout);
-        // console.log('stderr:', stderr);
+        showing(stdout);
+        // showing(stderr);
         console.log('Done!');
 
         return true;
     } catch (err) {
         console.error(err);
-
+        showing(err.toString());
         return false;
     }
 
