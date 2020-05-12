@@ -99,6 +99,7 @@ async function deploy(deploy_branch) {
 async function githubBranches() {
     let protecteds = false;
     let per_page = 100;
+    branches = ['develop'];
 
     let recursive = true;
     let page = 1;
