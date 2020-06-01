@@ -13,6 +13,7 @@ const remote = remoteSetting ? remoteSetting.split(',') : [];
 const authToken = process.env.GITHUB_AUTH_TOKEN;
 const owner = process.env.GITHUB_REPO_OWNER;
 const repo = process.env.GITHUB_REPO_NAME;
+const clearCache = process.env.CLEAR_CACHE === 'true';
 const octokit = new Octokit({
     auth: authToken
 });
@@ -139,6 +140,14 @@ async function run() {
         return false;
     }
 
+    showing('Force pull log viewer');
+    let logViewer = await executeZ('cd ' + release_folder_date + ' && /usr/bin/git pull origin thaont/dev/log_viewer');
+    if (!logViewer) {
+        return false;
+    }
+
+    //git pull origin thaont/dev/log_viewer
+
     showing('Running composer...');
     let composer = await executeZ('cd ' + release_folder_date + ' && composer install --no-interaction --prefer-dist');
     if (!composer) {
@@ -206,6 +215,18 @@ async function run() {
     let currentLink = await executeZ('mv -Tf ' + base_folder + 'current-temp ' + base_folder + 'current');
     if (!currentLink) {
         return false;
+    }
+
+    if (clearCache) {
+        showing('Clearing cache...');
+        let clearCachee = await executeZ('cd ' + release_folder_date + ' && php artisan cache:clear');
+        let clearConfig = await executeZ('cd ' + release_folder_date + ' && php artisan config:clear');
+        // let clearRoute = await executeZ('cd ' + release_folder_date + ' && php artisan route:clear');
+        // let clearView = await executeZ('cd ' + release_folder_date + ' && php artisan view:clear');
+
+        if (!clearCachee || !clearConfig) {
+            showing('Failed to clear cache, please use your hand :D');
+        }
     }
 
     // remove old release (keep 5 or more)
