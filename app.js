@@ -3,6 +3,7 @@ const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 const { Octokit } = require("@octokit/rest");
 const app = require('express')();
+const express = require('express');
 const path = require('path');
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
@@ -32,6 +33,9 @@ var running = false;
 var logs = [];
 var branches = ['develop'];
 var branch = 'develop';
+var progress = 0;
+
+app.use(express.static(__dirname + '/node_modules'));
 
 app.get('/deploy', function(req, res) {
     res.sendFile(path.join(__dirname + '/index.html'));
@@ -50,7 +54,8 @@ io.on('connection', (socket) => {
     socket.on('get branches', function (a) {
         if (running) {
             io.emit('status', 'deploying');
-            io.emit('show log', logs.join("\n"));
+            io.emit('show log', logs);
+            io.emit('show progress', progress);
         } else {
             githubBranches();
             io.emit('status', 'Not deploy');
@@ -91,6 +96,7 @@ async function deploy(deploy_branch) {
     branch = deploy_branch;
     let deployed  = await run();
     if (deployed) {
+        progress = 100;
         showing('Deployed successfully!');
     } else {
         showing('Failed to deploy!');
@@ -98,6 +104,7 @@ async function deploy(deploy_branch) {
 
     running = false;
     logs = [];
+    progress = 0;
 }
 
 async function githubBranches() {
@@ -136,12 +143,14 @@ async function run() {
     release_folder_date = release_folder + folder + '/';
 
     showing('Cloning git from ' + git_url);
+    progress = 10;
     let cloned = await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
     if (!cloned) {
         return false;
     }
 
     showing('Running composer...');
+    progress = 20;
     let composer = await executeZ('cd ' + release_folder_date + ' && composer install --no-interaction --prefer-dist');
     if (!composer) {
         return false;
@@ -157,6 +166,7 @@ async function run() {
     current = current.concat(remote);
 
     showing('Making symlink...');
+    progress = 30;
     for (let i = 0;i < current.length; i++) {
         if (current[i] === 'storage' || current[i] === 'bootstrap/cache') {
             let removeSymLink = await executeZ('rm -rf ' + release_folder_date + current[i]);
@@ -177,29 +187,34 @@ async function run() {
     }
 
     showing('Running npm...');
+    progress = 40;
     let npmInstall = await executeZ('cd ' + release_folder_date + ' && npm install');
     if (!npmInstall) {
         return false;
     }
 
+    progress = 50;
     let npmRunDev = await executeZ('cd ' + release_folder_date + ' && npm run dev');
     if (!npmRunDev) {
         return false;
     }
 
     showing('Migrate database...');
+    progress = 60;
     let migrations = await executeZ('cd ' + release_folder_date + ' && php artisan migrate --force');
     if (!migrations) {
         return false;
     }
 
     showing('Making storage link...');
+    progress = 70;
     let storageLink = await executeZ('cd ' + release_folder_date + ' && php artisan storage:link');
     if (!storageLink) {
         return false;
     }
 
     showing('Making current link...');
+    progress = 80;
     let currentLinkTmp = await executeZ('ln -s ' + release_folder_date + ' ' + base_folder + 'current-temp');
     if (!currentLinkTmp) {
         return false;
@@ -211,6 +226,7 @@ async function run() {
     }
 
     if (clearCache) {
+        progress = 85;
         showing('Clearing cache...');
         let clearCachee = await executeZ('cd ' + release_folder_date + ' && php artisan cache:clear');
         let clearConfig = await executeZ('cd ' + release_folder_date + ' && php artisan config:clear');
@@ -222,6 +238,7 @@ async function run() {
         }
     }
 
+    progress = 90;
     showing('Cleaning old release folders...');
     let cleanFolders = cleanOldFolders(folder);
     if (!cleanFolders) {
@@ -256,7 +273,8 @@ function formatFolder() {
 function showing(message = '') {
     console.log(message);
     logs.push(message);
-    io.emit('show log', logs.join("\n"));
+    io.emit('show log', logs);
+    io.emit('show progress', progress);
 }
 
 async function readFileFrom(path) {
