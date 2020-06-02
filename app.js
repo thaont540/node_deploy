@@ -6,6 +6,8 @@ const app = require('express')();
 const path = require('path');
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const fs = require('fs');
+const rimraf = require('rimraf');
 
 const git_url = process.env.GITHUB_REPO_URL;
 let remoteSetting = process.env.REMOTE;
@@ -14,6 +16,7 @@ const authToken = process.env.GITHUB_AUTH_TOKEN;
 const owner = process.env.GITHUB_REPO_OWNER;
 const repo = process.env.GITHUB_REPO_NAME;
 const clearCache = process.env.CLEAR_CACHE === 'true';
+var keepOldFolders = process.env.OLD_FOLDERS_TO_KEEP || 3;
 const octokit = new Octokit({
     auth: authToken
 });
@@ -129,24 +132,14 @@ async function githubBranches() {
 async function run() {
     // TO DO log by run time
     running = true;
-    release_folder_date = release_folder + formatFolder() + '/';
-
-    // showing('Removing old release folders');
-    // await executeZ('find ' + release_folder + '* -mtime +1 -exec rm {} \\;')
+    let folder = formatFolder();
+    release_folder_date = release_folder + folder + '/';
 
     showing('Cloning git from ' + git_url);
     let cloned = await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
     if (!cloned) {
         return false;
     }
-
-    showing('Force pull log viewer');
-    let logViewer = await executeZ('cd ' + release_folder_date + ' && /usr/bin/git pull origin thaont/dev/log_viewer');
-    if (!logViewer) {
-        return false;
-    }
-
-    //git pull origin thaont/dev/log_viewer
 
     showing('Running composer...');
     let composer = await executeZ('cd ' + release_folder_date + ' && composer install --no-interaction --prefer-dist');
@@ -229,8 +222,11 @@ async function run() {
         }
     }
 
-    // remove old release (keep 5 or more)
-    // latter
+    showing('Cleaning old release folders...');
+    let cleanFolders = cleanOldFolders(folder);
+    if (!cleanFolders) {
+        showing('Failed to clear old folders, please use your hand :D');
+    }
 
     return true;
 }
@@ -271,4 +267,27 @@ async function readFileFrom(path) {
 
 async function writeToFile(path, content) {
     const { stdout, stderr } = await exec("echo '" + content + "' > " + path);
+}
+
+function cleanOldFolders(currentFolder) {
+    let releaseFolders = getDirectories(release_folder);
+    let index = releaseFolders.indexOf(currentFolder);
+    releaseFolders.splice(index, 1);
+    keepOldFolders = keepOldFolders - 1;
+    let needRemoveFolders = releaseFolders.slice(0, releaseFolders.length - keepOldFolders);
+
+    if (needRemoveFolders.length) {
+        for (let i in needRemoveFolders) {
+            let folderPath = release_folder + needRemoveFolders[i];
+            rimraf.sync(folderPath);
+        }
+    }
+
+    return true;
+}
+
+function getDirectories(path) {
+    return fs.readdirSync(path).filter(function (file) {
+        return fs.statSync(path + '/' + file).isDirectory();
+    });
 }
