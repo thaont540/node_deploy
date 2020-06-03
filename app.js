@@ -18,9 +18,13 @@ const owner = process.env.GITHUB_REPO_OWNER;
 const repo = process.env.GITHUB_REPO_NAME;
 const clearCache = process.env.CLEAR_CACHE === 'true';
 var keepOldFolders = process.env.OLD_FOLDERS_TO_KEEP || 3;
-const octokit = new Octokit({
-    auth: authToken
-});
+var octokit = null;
+
+if (authToken) {
+    octokit = new Octokit({
+        auth: authToken
+    });
+}
 
 const base_folder = '/var/www/' + process.env.PROJECT_NAME + '/' + process.env.PROJECT_NAME + '/';
 const release_folder = base_folder + 'releases/';
@@ -45,11 +49,6 @@ app.get('/deploy/edit-env', function(req, res) {
     res.sendFile(path.join(__dirname + '/edit-env.html'));
 });
 
-async function test() {
-    let env = await readFileFrom(shared_folder + '.env.bak');
-    writeToFile(shared_folder + '.env', env);
-}
-
 io.on('connection', (socket) => {
     socket.on('get branches', function (a) {
         if (running) {
@@ -61,10 +60,6 @@ io.on('connection', (socket) => {
             io.emit('status', 'Not deploy');
         }
     });
-
-    // socket.on('disconnect', () => {
-    //     console.log('user disconnected');
-    // });
 
     socket.on('get env', function (a) {
         readFileFrom(shared_folder + '.env').then(function (data) {
@@ -108,29 +103,33 @@ async function deploy(deploy_branch) {
 }
 
 async function githubBranches() {
-    let protecteds = false;
-    let per_page = 100;
-    branches = ['develop'];
+    if (authToken) {
+        let protecteds = false;
+        let per_page = 100;
+        branches = [];
 
-    let recursive = true;
-    let page = 1;
+        let recursive = true;
+        let page = 1;
 
-    while (recursive) {
-        let { data } = await octokit.repos.listBranches({
-            owner,
-            repo,
-            protecteds,
-            per_page,
-            page,
-        });
+        while (recursive) {
+            let { data } = await octokit.repos.listBranches({
+                owner,
+                repo,
+                protecteds,
+                per_page,
+                page,
+            });
 
-        let a = data.map(function (b) {
-            return b.name;
-        });
+            let a = data.map(function (b) {
+                return b.name;
+            });
 
-        branches = branches.concat(a);
-        page++;
-        recursive = a.length;
+            branches = branches.concat(a);
+            page++;
+            recursive = a.length;
+        }
+    } else {
+        branches = ['develop'];
     }
 
     io.emit('branches', branches);
