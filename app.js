@@ -39,6 +39,10 @@ var branches = ['develop'];
 var branch = 'develop';
 var progress = 0;
 
+http.listen(port, function () {
+    console.log('Server listening at ' + port);
+});
+
 app.use(express.static(__dirname + '/node_modules'));
 
 app.get('/deploy', function(req, res) {
@@ -83,18 +87,16 @@ io.on('connection', (socket) => {
     });
 });
 
-http.listen(port, function () {
-    console.log('Server listening at ' + port);
-});
-
 async function deploy(deploy_branch) {
     branch = deploy_branch;
     let deployed  = await run();
     if (deployed) {
         progress = 100;
         showing('Deployed successfully!');
+        io.emit('status', 'done');
     } else {
         showing('Failed to deploy!');
+        io.emit('status', 'fail');
     }
 
     running = false;
