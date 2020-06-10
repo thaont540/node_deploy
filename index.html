@@ -405,7 +405,15 @@
                     </section>
                 </section>
             </main>
-
+            <dialog class="nes-dialog" id="dialog-done">
+                <form method="dialog">
+                    <p class="title">Deploy completed!</p>
+                    <p>Status: <b class="status"></b></p>
+                    <menu class="dialog-menu">
+                        <button class="nes-btn is-primary done-btn">Ok, next!</button>
+                    </menu>
+                </form>
+            </dialog>
             <footer>
                 <p><span>©2020</span>
                     <a href="https://github.com/thaont540/node_deploy" target="_blank" rel="noopener">Deploy tools</a>
@@ -423,8 +431,13 @@
             socket.emit('get branches', '');
             socket.on('status', function(msg) {
                 $('.status b').text(msg);
+                $('#dialog-done').find('.status:first').text(msg);
                 if (msg === 'deploying') {
                     $('.chose-branch').hide();
+                }
+
+                if (msg === 'done' || msg === 'fail') {
+                    document.getElementById('dialog-done').showModal();
                 }
             });
 
@@ -471,6 +484,10 @@
 
             $('.deploy-btn').on('click', function () {
                 socket.emit('deploy', $('.select-branches').val());
+            });
+
+            $('.done-btn').on('click', function () {
+                window.location.reload();
             });
         });
     </script>
