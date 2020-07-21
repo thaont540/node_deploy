@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Laravel simple deployer by thaont540</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Laravel simple deployer</h1>
+        <p>This tool deploy Laravel, used Nodejs.</p>
+
+        <p class="view"><a href="https://github.com/thaont540/node_deploy">View the Project on GitHub <small>thaont540/node_deploy</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/thaont540/node_deploy/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/thaont540/node_deploy/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/thaont540/node_deploy">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="laravel-deployer" class="anchor" href="#laravel-deployer" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Laravel deployer</h1>
+<p><em>Note</em> Deployed Laravel folders will be organized same <a href="http://rocketeer.autopergamene.eu/">Rocketeer</a> deployed, so this app could be used while using Rocketeer. If this is the first time you setup your project, so you need setup project folders by manual.</p>
+<p>This will be: <code>/var/www/project_name/github_name/{releases - shared - current}</code></p>
+<h2>
+<a id="manual-setup" class="anchor" href="#manual-setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Manual setup</h2>
+<h3>
+<a id="install-requirement" class="anchor" href="#install-requirement" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Install requirement</h3>
+<pre><code>$ sudo apt-get install git
+$ curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+$ sudo apt-get install -y nodejs
+$ npm install pm2 -g
+</code></pre>
+<h3>
+<a id="setting" class="anchor" href="#setting" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Setting</h3>
+<ul>
+<li>Git clone from <a href="https://github.com/thaont540/node_deploy">Master branch</a>
+</li>
+<li>Move to folder <code>node_deploy</code>
+</li>
+<li>Config <code>.env</code> file</li>
+</ul>
+<pre><code>cp .env.example .env
+</code></pre>
+<p><em>Note</em> Go to <a href="https://github.com/settings/tokens">Personal access tokens </a> to get token for <code>GITHUB_AUTH_TOKEN</code></p>
+<ul>
+<li>Install package:</li>
+</ul>
+<pre><code>$ npm install
+</code></pre>
+<ul>
+<li>Run in background:</li>
+</ul>
+<pre><code>$ pm2 start app.js
+</code></pre>
+<h2>
+<a id="auto-setup" class="anchor" href="#auto-setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Auto setup</h2>
+<p><img src="https://github.com/thaont540/node_deploy/blob/master/bash.png" alt=""></p>
+<ul>
+<li>Download bash file <a href="https://github.com/thaont540/node_deploy/blob/master/install.sh">install.sh</a> then move it to <code>/var/www/</code>
+</li>
+<li>Change to <code>deploy</code> user</li>
+</ul>
+<pre><code>$ sudo su - deploy
+</code></pre>
+<ul>
+<li>Then run this file in <code>deploy</code> user</li>
+</ul>
+<pre><code>$ ./install.sh
+</code></pre>
+<h3>
+<a id="bash-file-with-su-permission" class="anchor" href="#bash-file-with-su-permission" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Bash file with su permission</h3>
+<ul>
+<li>Download bash file <a href="https://github.com/thaont540/node_deploy/blob/master/sudo_install.sh">sudo_install.sh</a> then move it to <code>/var/www/</code>
+</li>
+<li>Then run with sudo:</li>
+</ul>
+<pre><code>$ sudo ./sudo_install.sh
+</code></pre>
+<h2>
+<a id="nginx-setup" class="anchor" href="#nginx-setup" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Nginx setup</h2>
+<ul>
+<li>Use reverse proxy</li>
+</ul>
+<pre><code>#.....
+location ^~/socket.io/ {
+    proxy_pass http://localhost:8001; #node port
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_redirect off;
+
+    proxy_buffers 8 32k;
+    proxy_buffer_size 64k;
+
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $host;
+    proxy_set_header X-NginX-Proxy true;
+}
+location /deploy {
+    proxy_pass http://localhost:8001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_redirect off;
+
+    proxy_buffers 8 32k;
+    proxy_buffer_size 64k;
+
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $host;
+    proxy_set_header X-NginX-Proxy true;
+}
+#....
+</code></pre>
+<p><strong>!! Note !!</strong> If your project used Laravel echo or something else like socketIO, this will get conflict.</p>
+<h2>
+<a id="how-to-use" class="anchor" href="#how-to-use" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>How to use</h2>
+<p><img src="https://github.com/thaont540/node_deploy/raw/master/demo.png" alt=""></p>
+<ul>
+<li>Go to <code>https://yourdomain.com/deploy</code> to start deploy</li>
+<li>Go to <code>https://yourdomain.com/deploy/edit-env</code> to edit env file</li>
+<li>Check pm2 at <a href="https://pm2.keymetrics.io/">pm2.keymetrics.io</a>
+</li>
+<li>Get Github auth token <a href="https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line">here</a>
+</li>
+<li>Deployed Laravel folders will be organized same <a href="http://rocketeer.autopergamene.eu/">Rocketeer</a> deployed</li>
+</ul>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/thaont540">thaont540</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
