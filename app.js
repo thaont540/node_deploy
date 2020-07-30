@@ -54,6 +54,8 @@ app.get('/deploy/edit-env', function(req, res) {
 });
 
 io.on('connection', (socket) => {
+    getCurrentCommit();
+    getCurrentBranch();
     socket.on('get branches', function (a) {
         if (running) {
             io.emit('status', 'deploying');
@@ -102,6 +104,16 @@ async function deploy(deploy_branch) {
     running = false;
     logs = [];
     progress = 0;
+}
+
+async function getCurrentCommit() {
+    const { stdout, stderr } = await exec('cd ' + base_folder + 'current && git log -1');
+    io.emit('current commit', stdout);
+}
+
+async function getCurrentBranch() {
+    const { stdout, stderr } = await exec('cd ' + base_folder + 'current && git rev-parse --abbrev-ref HEAD');
+    io.emit('current branch', stdout);
 }
 
 async function githubBranches() {
@@ -249,18 +261,26 @@ async function run() {
     return true;
 }
 
-async function executeZ(cmd) {
-    showing('>>>>>> ' + cmd);
+async function executeZ(cmd, showCmd = true) {
+    if (showCmd) {
+        showing('>>>>>> ' + cmd);
+    }
+
     try {
         const { stdout, stderr } = await exec(cmd);
-        showing(stdout);
+        if (showCmd) {
+            showing(stdout);
+        }
         // showing(stderr);
         console.log('Done!');
 
         return true;
     } catch (err) {
         console.error(err);
-        showing(err.toString());
+        if (showCmd) {
+            showing(err.toString());
+        }
+
         return false;
     }
 

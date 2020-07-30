@@ -359,6 +359,17 @@
 
         <div class="container">
             <main class="main-content">
+                <section class="showcase">
+                    <section class="nes-container with-title">
+                        <h3 class="title">Current deployed</h3>
+                        <div id="current-branch" class="item">
+                            branch: <b class="cr-branch"></b>
+                        </div>
+                        <br>
+                        <div id="current-commit" class="item" style="white-space: pre-wrap;">
+                        </div>
+                    </section>
+                </section>
                 <section class="showcase chose-branch">
                     <section class="nes-container with-title"><h3 class="title">Selects</h3>
                         <div id="selects" class="item">
@@ -439,6 +450,14 @@
                 if (msg === 'done' || msg === 'fail') {
                     document.getElementById('dialog-done').showModal();
                 }
+            });
+
+            socket.on('current commit', function (data) {
+                $('#current-commit').empty().text(data);
+            });
+
+            socket.on('current branch', function (data) {
+                $('#current-branch .cr-branch').empty().text(data);
             });
 
             socket.on('branches', function (branches) {
