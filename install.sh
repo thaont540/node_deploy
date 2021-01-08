@@ -71,7 +71,7 @@ check_command pm2 || error_message
 git clone https://github.com/thaont540/node_deploy.git
 cd "$(pwd)/node_deploy" && npm install
 echo -e "Config .env file..."
-echo -e "${GREEN}Enter Github Url:${NOCOLOR} ${LIGHTGRAY}(Git url which you want to deploy)${NOCOLOR}"
+echo -e "${GREEN}Enter Github Url (using ssh link):${NOCOLOR} ${LIGHTGRAY}(Git url which you want to deploy)${NOCOLOR}"
 read x
 echo -e "GITHUB_REPO_URL=${x:-"git@github.com:thaont540/petstore.git"}" >> .env
 echo -e "${GREEN}Enter Github Auth token:${NOCOLOR} ${LIGHTGRAY}(To fetch branches and something else)${NOCOLOR}"
@@ -86,7 +86,7 @@ echo -e "GITHUB_REPO_NAME=${x:-"petstore"}" >> .env
 echo -e "${GREEN}Enter Project name:${NOCOLOR} ${LIGHTGRAY}(petstore)${NOCOLOR}"
 read x
 echo -e "PROJECT_NAME=${x:-"petstore"}" >> .env
-echo -e "${GREEN}Enter node port:${NOCOLOR} ${LIGHTGRAY}(6001)${NOCOLOR}"
+echo -e "${GREEN}Enter node port:${NOCOLOR} ${LIGHTGRAY}(8001)${NOCOLOR}"
 read x
 echo -e "NODE_PORT=${x:-8001}" >> .env
 echo -e "CLEAR_CACHE=true" >> .env
