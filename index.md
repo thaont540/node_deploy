@@ -78,6 +78,22 @@ location /deploy {
     proxy_set_header Host $host;
     proxy_set_header X-NginX-Proxy true;
 }
+location ^~/nes.css/ {
+    proxy_pass http://localhost:8001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_redirect off;
+
+    proxy_buffers 8 32k;
+    proxy_buffer_size 64k;
+
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $host;
+    proxy_set_header X-NginX-Proxy true;
+    auth_basic "off";
+}
 #....
 ```
 **!! Note !!** If your project used Laravel echo or something else like socketIO, this will get conflict.
