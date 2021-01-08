@@ -1,0 +1,8 @@
+title: Laravel simple deployer
+description: This tool deploy Laravel, used Nodejs.
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-architect
+
+gems:
+  - jekyll-mentions
