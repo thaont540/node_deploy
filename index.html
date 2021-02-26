@@ -362,10 +362,6 @@
                 <section class="showcase">
                     <section class="nes-container with-title">
                         <h3 class="title">Current deployed</h3>
-                        <div id="current-branch" class="item">
-                            branch: <b class="cr-branch"></b>
-                        </div>
-                        <br>
                         <div id="current-commit" class="item" style="white-space: pre-wrap;">
                         </div>
                     </section>
@@ -375,8 +371,8 @@
                         <div id="selects" class="item">
                             <label for="success_select">Branch</label>
                             <div class="nes-select is-success">
-                                <select required="" id="success_select" class="select-branches">
-                                    <option value="" disabled="" selected="" hidden="">Fetching branch...</option>
+                                <select required="" id="success_select" class="select-branches" disabled>
+                                    <option value="" disabled="" selected="" hidden="">Disabled by Owner</option>
                                 </select>
                             </div>
                         </div>
@@ -456,19 +452,19 @@
                 $('#current-commit').empty().text(data);
             });
 
-            socket.on('current branch', function (data) {
-                $('#current-branch .cr-branch').empty().text(data);
-            });
+            // socket.on('current branch', function (data) {
+            //     $('#current-branch .cr-branch').empty().text(data);
+            // });
 
-            socket.on('branches', function (branches) {
-                let selectBranches = '<select>';
-                for (let i = 0; i < branches.length; i++) {
-                    selectBranches += '<option>' + branches[i] + '</option>';
-                }
-                selectBranches += '</select>';
-
-                $('.select-branches').html(selectBranches);
-            });
+            // socket.on('branches', function (branches) {
+            //     let selectBranches = '<select>';
+            //     for (let i = 0; i < branches.length; i++) {
+            //         selectBranches += '<option>' + branches[i] + '</option>';
+            //     }
+            //     selectBranches += '</select>';
+            //
+            //     $('.select-branches').html(selectBranches);
+            // });
             
             socket.on('show progress', function (progress) {
                 let elem = $('.nes-progress');
