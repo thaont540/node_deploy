@@ -10,7 +10,6 @@ const io = require('socket.io')(http);
 const fs = require('fs');
 const rimraf = require('rimraf');
 
-const git_url = process.env.GITHUB_REPO_URL;
 let remoteSetting = process.env.REMOTE;
 const remote = remoteSetting ? remoteSetting.split(',') : [];
 const authToken = process.env.GITHUB_AUTH_TOKEN;
@@ -21,7 +20,7 @@ var keepOldFolders = process.env.OLD_FOLDERS_TO_KEEP || 3;
 var octokit = null;
 const gitRemoteEnv = process.env.GITHUB_REMOTE;
 const gitRemoteList = gitRemoteEnv ? gitRemoteEnv.split(',') : [];
-const gitRemote = gitRemoteList ? gitRemoteList[0] : null;
+var gitRemote = gitRemoteList ? gitRemoteList[0] : null;
 
 if (authToken) {
     octokit = new Octokit({
@@ -29,10 +28,10 @@ if (authToken) {
     });
 }
 
-const base_folder = '/home/thaohihi/projects/node_deploy';
-const release_folder = base_folder;
-var release_folder_date = release_folder;
-const shared_folder = base_folder;
+const base_folder = '/var/www/' + process.env.PROJECT_NAME + '/';
+const release_folder = base_folder + 'realeases/';
+var release_folder_date = release_folder + formatFolder() + '/';
+const shared_folder = base_folder + 'shared/';
 
 const port = process.env.NODE_PORT || 8080;
 
@@ -59,22 +58,29 @@ app.get('/deploy/edit-env', function(req, res) {
 io.on('connection', (socket) => {
     getCurrentCommit();
     getCurrentBranch();
-    socket.on('get branches', function (a) {
+    socket.on('get branches', function (remote) {
         if (running) {
             io.emit('status', 'deploying');
             io.emit('show log', logs);
             io.emit('show progress', progress);
         } else {
-            githubBranches(gitRemote);
+            let remoteTmp = remote == null ? gitRemote : remote;
+            githubBranches(remoteTmp);
             io.emit('status', 'Not deploy');
-            io.emit('current remote', gitRemote);
+            io.emit('current remote', remoteTmp);
             io.emit('remote list', gitRemoteList);
         }
     });
 
     socket.on('get remotes', function (remote) {
         githubBranches(remote);
-    })
+        gitRemote = remote;
+    });
+
+    socket.on('set remote', function (remote) {
+        gitRemote = remote;
+        githubBranches(remote);
+    });
 
     socket.on('get env', function (a) {
         readFileFrom(shared_folder + '.env').then(function (data) {
@@ -116,12 +122,12 @@ async function deploy(deploy_branch) {
 }
 
 async function getCurrentCommit() {
-    const { stdout, stderr } = await exec('cd ' + base_folder + ' && git log -1');
+    const { stdout, stderr } = await exec('cd ' + base_folder + 'current && git log -1');
     io.emit('current commit', stdout);
 }
 
 async function getCurrentBranch() {
-    const { stdout, stderr } = await exec('cd ' + base_folder + ' && git rev-parse --abbrev-ref HEAD');
+    const { stdout, stderr } = await exec('cd ' + base_folder + 'current && git rev-parse --abbrev-ref HEAD');
     io.emit('current branch', stdout);
 }
 
@@ -158,17 +164,41 @@ async function githubBranches(owner) {
     io.emit('branches', branches);
 }
 
+function getGitUrl() {
+    return 'git@github.com:' + gitRemote + '/' + repo + '.git';
+}
+
 async function run() {
     // TO DO log by run time
     running = true;
     let folder = formatFolder();
     release_folder_date = release_folder + folder + '/';
+    const git_url = getGitUrl();
 
     showing('Cloning git from ' + git_url);
     progress = 10;
     let cloned = await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
     if (!cloned) {
         return false;
+    }
+
+    showing('Making current link...');
+    progress = 80;
+    let currentLinkTmp = await executeZ('ln -s ' + release_folder_date + ' ' + base_folder + 'current-temp');
+    if (!currentLinkTmp) {
+        return false;
+    }
+
+    let currentLink = await executeZ('mv -Tf ' + base_folder + 'current-temp ' + base_folder + 'current');
+    if (!currentLink) {
+        return false;
+    }
+
+    progress = 90;
+    showing('Cleaning old release folders...');
+    let cleanFolders = cleanOldFolders(folder);
+    if (!cleanFolders) {
+        showing('Failed to clear old folders, please use your hand :D');
     }
 
     return true;

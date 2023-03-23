@@ -447,14 +447,17 @@
     <script>
         $(function () {
             const socket = io();
-            socket.emit('get branches', '');
+            let remote = localStorage.getItem('remote_git');
+            socket.emit('get branches', remote);
+
             $('.select-remotes').on('change', function (e) {
+                localStorage.setItem('remote_git', $(this).val());
                 socket.emit('get remotes', $(this).val());
             });
             socket.on('remote list', function (remotes) {
                 let selectRemotes = '<select>';
                 for (let i = 0; i < remotes.length; i++) {
-                    selectRemotes += '<option>' + remotes[i] + '</option>';
+                    selectRemotes += '<option ' + (remote != null && remote == remotes[i] ? 'selected' : '') + '>' + remotes[i] + '</option>';
                 }
                 selectRemotes += '</select>';
 
