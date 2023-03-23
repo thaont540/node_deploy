@@ -10,7 +10,6 @@ const io = require('socket.io')(http);
 const fs = require('fs');
 const rimraf = require('rimraf');
 
-const git_url = process.env.GITHUB_REPO_URL;
 let remoteSetting = process.env.REMOTE;
 const remote = remoteSetting ? remoteSetting.split(',') : [];
 const authToken = process.env.GITHUB_AUTH_TOKEN;
@@ -19,6 +18,9 @@ const repo = process.env.GITHUB_REPO_NAME;
 const clearCache = process.env.CLEAR_CACHE === 'true';
 var keepOldFolders = process.env.OLD_FOLDERS_TO_KEEP || 3;
 var octokit = null;
+const gitRemoteEnv = process.env.GITHUB_REMOTE;
+const gitRemoteList = gitRemoteEnv ? gitRemoteEnv.split(',') : [];
+var gitRemote = gitRemoteList ? gitRemoteList[0] : null;
 
 if (authToken) {
     octokit = new Octokit({
@@ -26,8 +28,8 @@ if (authToken) {
     });
 }
 
-const base_folder = '/var/www/' + process.env.PROJECT_NAME + '/' + process.env.PROJECT_NAME + '/';
-const release_folder = base_folder + 'releases/';
+const base_folder = '/var/www/' + process.env.PROJECT_NAME + '/';
+const release_folder = base_folder + 'realeases/';
 var release_folder_date = release_folder + formatFolder() + '/';
 const shared_folder = base_folder + 'shared/';
 
@@ -56,15 +58,28 @@ app.get('/deploy/edit-env', function(req, res) {
 io.on('connection', (socket) => {
     getCurrentCommit();
     getCurrentBranch();
-    socket.on('get branches', function (a) {
+    socket.on('get branches', function (remote) {
         if (running) {
             io.emit('status', 'deploying');
             io.emit('show log', logs);
             io.emit('show progress', progress);
         } else {
-            githubBranches();
+            let remoteTmp = remote == null ? gitRemote : remote;
+            githubBranches(remoteTmp);
             io.emit('status', 'Not deploy');
+            io.emit('current remote', remoteTmp);
+            io.emit('remote list', gitRemoteList);
         }
+    });
+
+    socket.on('get remotes', function (remote) {
+        githubBranches(remote);
+        gitRemote = remote;
+    });
+
+    socket.on('set remote', function (remote) {
+        gitRemote = remote;
+        githubBranches(remote);
     });
 
     socket.on('get env', function (a) {
@@ -116,7 +131,7 @@ async function getCurrentBranch() {
     io.emit('current branch', stdout);
 }
 
-async function githubBranches() {
+async function githubBranches(owner) {
     if (authToken) {
         let protecteds = false;
         let per_page = 100;
@@ -126,14 +141,14 @@ async function githubBranches() {
         let page = 1;
 
         while (recursive) {
-            let { data } = await octokit.repos.listBranches({
+            let response = await octokit.repos.listBranches({
                 owner,
                 repo,
                 protecteds,
                 per_page,
                 page,
-            });
-
+            }).catch(e => console.log(e));
+            let data = response ? response.data : [];
             let a = data.map(function (b) {
                 return b.name;
             });
@@ -149,80 +164,21 @@ async function githubBranches() {
     io.emit('branches', branches);
 }
 
+function getGitUrl() {
+    return 'git@github.com:' + gitRemote + '/' + repo + '.git';
+}
+
 async function run() {
     // TO DO log by run time
     running = true;
     let folder = formatFolder();
     release_folder_date = release_folder + folder + '/';
+    const git_url = getGitUrl();
 
     showing('Cloning git from ' + git_url);
     progress = 10;
     let cloned = await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
     if (!cloned) {
-        return false;
-    }
-
-    showing('Running composer...');
-    progress = 20;
-    let composer = await executeZ('cd ' + release_folder_date + ' && composer install --no-interaction --prefer-dist');
-    if (!composer) {
-        return false;
-    }
-
-    let current = [
-        'bootstrap/cache',
-        'storage',
-        '.env',
-        '.htpasswd'
-    ];
-
-    current = current.concat(remote);
-
-    showing('Making symlink...');
-    progress = 30;
-    for (let i = 0;i < current.length; i++) {
-        if (current[i] === 'storage' || current[i] === 'bootstrap/cache') {
-            let removeSymLink = await executeZ('rm -rf ' + release_folder_date + current[i]);
-            if (!removeSymLink) {
-                return false;
-            }
-        }
-
-        let symlinkTmp = await executeZ('ln -s ' + shared_folder + current[i] + ' ' + release_folder_date + current[i] + '-temp');
-        if (!symlinkTmp) {
-            return false;
-        }
-
-        let symlink = await executeZ('mv -Tf ' + release_folder_date + current[i] + '-temp ' + release_folder_date + current[i]);
-        if (!symlink) {
-            return false;
-        }
-    }
-
-    showing('Running npm...');
-    progress = 40;
-    let npmInstall = await executeZ('cd ' + release_folder_date + ' && npm install');
-    if (!npmInstall) {
-        return false;
-    }
-
-    progress = 50;
-    let npmRunDev = await executeZ('cd ' + release_folder_date + ' && npm run dev');
-    if (!npmRunDev) {
-        return false;
-    }
-
-    showing('Migrate database...');
-    progress = 60;
-    let migrations = await executeZ('cd ' + release_folder_date + ' && php artisan migrate --force');
-    if (!migrations) {
-        return false;
-    }
-
-    showing('Making storage link...');
-    progress = 70;
-    let storageLink = await executeZ('cd ' + release_folder_date + ' && php artisan storage:link');
-    if (!storageLink) {
         return false;
     }
 
@@ -236,19 +192,6 @@ async function run() {
     let currentLink = await executeZ('mv -Tf ' + base_folder + 'current-temp ' + base_folder + 'current');
     if (!currentLink) {
         return false;
-    }
-
-    if (clearCache) {
-        progress = 85;
-        showing('Clearing cache...');
-        let clearCachee = await executeZ('cd ' + release_folder_date + ' && php artisan cache:clear');
-        let clearConfig = await executeZ('cd ' + release_folder_date + ' && php artisan config:clear');
-        // let clearRoute = await executeZ('cd ' + release_folder_date + ' && php artisan route:clear');
-        // let clearView = await executeZ('cd ' + release_folder_date + ' && php artisan view:clear');
-
-        if (!clearCachee || !clearConfig) {
-            showing('Failed to clear cache, please use your hand :D');
-        }
     }
 
     progress = 90;
