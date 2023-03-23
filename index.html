@@ -372,10 +372,18 @@
                 </section>
                 <section class="showcase chose-branch">
                     <section class="nes-container with-title"><h3 class="title">Selects</h3>
-                        <div id="selects" class="item">
-                            <label for="success_select">Branch</label>
+                        <div id="selects1" class="item">
+                            <label for="success_select1">Remote</label>
                             <div class="nes-select is-success">
-                                <select required="" id="success_select" class="select-branches">
+                                <select required="" id="success_select1" class="select-remotes">
+                                    <option value="" disabled="" selected="" hidden="">Fetching remote...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="selects2" class="item">
+                            <label for="success_select2">Branch</label>
+                            <div class="nes-select is-success">
+                                <select required="" id="success_select2" class="select-branches">
                                     <option value="" disabled="" selected="" hidden="">Fetching branch...</option>
                                 </select>
                             </div>
@@ -440,6 +448,18 @@
         $(function () {
             const socket = io();
             socket.emit('get branches', '');
+            $('.select-remotes').on('change', function (e) {
+                socket.emit('get remotes', $(this).val());
+            });
+            socket.on('remote list', function (remotes) {
+                let selectRemotes = '<select>';
+                for (let i = 0; i < remotes.length; i++) {
+                    selectRemotes += '<option>' + remotes[i] + '</option>';
+                }
+                selectRemotes += '</select>';
+
+                $('.select-remotes').html(selectRemotes);
+            });
             socket.on('status', function(msg) {
                 $('.status b').text(msg);
                 $('#dialog-done').find('.status:first').text(msg);
