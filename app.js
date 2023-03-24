@@ -30,6 +30,7 @@ if (authToken) {
 
 const base_folder = '/var/www/' + process.env.PROJECT_NAME + '/';
 const release_folder = base_folder + 'realeases/';
+const current_folder = base_folder + 'current/';
 var release_folder_date = release_folder + formatFolder() + '/';
 const shared_folder = base_folder + 'shared/';
 
@@ -175,31 +176,44 @@ async function run() {
     release_folder_date = release_folder + folder + '/';
     const git_url = getGitUrl();
 
-    showing('Cloning git from ' + git_url);
-    progress = 10;
-    let cloned = await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
-    if (!cloned) {
-        return false;
-    }
-
-    showing('Making current link...');
-    progress = 80;
-    let currentLinkTmp = await executeZ('ln -s ' + release_folder_date + ' ' + base_folder + 'current-temp');
-    if (!currentLinkTmp) {
-        return false;
-    }
-
-    let currentLink = await executeZ('mv -Tf ' + base_folder + 'current-temp ' + base_folder + 'current');
-    if (!currentLink) {
+    progress = 50;
+    let gitFetch = await executeZ('cd ' + current_folder + ' && /usr/bin/git fetch origin ' + branch);
+    if (!gitFetch) {
         return false;
     }
 
     progress = 90;
-    showing('Cleaning old release folders...');
-    let cleanFolders = cleanOldFolders(folder);
-    if (!cleanFolders) {
-        showing('Failed to clear old folders, please use your hand :D');
+    let gitCheckout = await executeZ('cd ' + current_folder + ' && /usr/bin/git checkout ' + branch);
+    if (!gitCheckout) {
+        return false;
     }
+
+
+    // showing('Cloning git from ' + git_url);
+    // progress = 10;
+    // let cloned = await executeZ('/usr/bin/git clone "' + git_url + '" "' + release_folder_date + '" --branch="' + branch + '" --depth="1"');
+    // if (!cloned) {
+    //     return false;
+    // }
+    //
+    // showing('Making current link...');
+    // progress = 80;
+    // let currentLinkTmp = await executeZ('ln -s ' + release_folder_date + ' ' + base_folder + 'current-temp');
+    // if (!currentLinkTmp) {
+    //     return false;
+    // }
+    //
+    // let currentLink = await executeZ('mv -Tf ' + base_folder + 'current-temp ' + base_folder + 'current');
+    // if (!currentLink) {
+    //     return false;
+    // }
+    //
+    // progress = 90;
+    // showing('Cleaning old release folders...');
+    // let cleanFolders = cleanOldFolders(folder);
+    // if (!cleanFolders) {
+    //     showing('Failed to clear old folders, please use your hand :D');
+    // }
 
     return true;
 }
