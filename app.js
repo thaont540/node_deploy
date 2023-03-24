@@ -52,9 +52,9 @@ app.get('/deploy', function(req, res) {
     res.sendFile(path.join(__dirname + '/index.html'));
 });
 
-app.get('/deploy/edit-env', function(req, res) {
-    res.sendFile(path.join(__dirname + '/edit-env.html'));
-});
+// app.get('/deploy/edit-env', function(req, res) {
+//     res.sendFile(path.join(__dirname + '/edit-env.html'));
+// });
 
 io.on('connection', (socket) => {
     getCurrentCommit();

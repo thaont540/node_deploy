@@ -375,7 +375,7 @@
                         <div id="selects1" class="item">
                             <label for="success_select1">Remote</label>
                             <div class="nes-select is-success">
-                                <select required="" id="success_select1" class="select-remotes">
+                                <select required="" id="success_select1" class="select-remotes" disabled>
                                     <option value="" disabled="" selected="" hidden="">Fetching remote...</option>
                                 </select>
                             </div>
@@ -447,17 +447,11 @@
     <script>
         $(function () {
             const socket = io();
-            let remote = localStorage.getItem('remote_git');
-            socket.emit('get branches', remote);
-
-            $('.select-remotes').on('change', function (e) {
-                localStorage.setItem('remote_git', $(this).val());
-                socket.emit('get remotes', $(this).val());
-            });
+            socket.emit('get branches', null);
             socket.on('remote list', function (remotes) {
                 let selectRemotes = '<select>';
                 for (let i = 0; i < remotes.length; i++) {
-                    selectRemotes += '<option ' + (remote != null && remote == remotes[i] ? 'selected' : '') + '>' + remotes[i] + '</option>';
+                    selectRemotes += '<option>' + remotes[i] + '</option>';
                 }
                 selectRemotes += '</select>';
 
